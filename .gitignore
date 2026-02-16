@@ -1,5 +1,15 @@
+# Python
 __pycache__/
-.env
-venv/
 *.pyc
-.env.local
+*.pyo
+*.pyd
+
+# Virtual env
+backend/.venv/
+
+# Env files
+backend/.env
+
+# OS
+.DS_Store
+Thumbs.db
