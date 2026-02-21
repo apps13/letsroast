@@ -1,6 +1,6 @@
 # Let's Roast
 
-# Project
+## Project
 
 LetsRoast is a backend service for creating private, invite-only groups where users can post anonymous compliments (and optionally roasts).
 
@@ -20,3 +20,4 @@ This project is being built to practice backend system design, API development, 
 - Join groups using invite code
 - Persistent storage in PostgreSQL
 - Proper database session management
+
