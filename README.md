@@ -1,23 +1,32 @@
 # Let's Roast
 
-## Project
-
-LetsRoast is a backend service for creating private, invite-only groups where users can post anonymous compliments (and optionally roasts).
-
-This project is being built to practice backend system design, API development, database modeling, and clean engineering practices.
+LetsRoast is a backend service for private, invite-only groups where users can post anonymous compliments (and optionally roasts).
 
 ## Tech Stack
 
-- FastAPI
-- PostgreSql
-- SQLAlchemy
+- Java
+- Spring Boot (planned)
+- Maven
 - Docker
-- Uvicorn
 
-## Current Features
-- Create private groups
-- Secure invite code generation
-- Join groups using invite code
-- Persistent storage in PostgreSQL
-- Proper database session management
+## Current Status
+
+- Java migration in progress
+- Domain models started in `backend-java`
+- Python backend removed to keep the repository focused
+
+## Project Structure
+
+- `backend-java/src/main/java/com/letsroast/model`: domain models
+
+## Quick Start
+
+1. Open the project in your IDE.
+2. Run Maven commands from `backend-java` as features are added.
+
+```powershell
+cd backend-java
+mvn clean test
+```
+
 
