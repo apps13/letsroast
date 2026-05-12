@@ -17,3 +17,8 @@ Thumbs.db
 # Java / Maven
 backend-java/target/
 *.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
