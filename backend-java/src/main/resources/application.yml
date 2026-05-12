@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: letsroast-backend
+
+server:
+  port: 8080
