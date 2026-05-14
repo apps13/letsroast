@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LetsRoast MVP</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 900px; }
+    h1 { margin-bottom: 8px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+    input, button, select { padding: 8px; }
+    button { cursor: pointer; }
+    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow: auto; }
+    #messages li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <h1>LetsRoast</h1>
+  <p>Create users, create/join groups, post messages, and view group chat.</p>
+
+  <div class="card">
+    <h3>1) Create User</h3>
+    <div class="row">
+      <input id="username" placeholder="username (e.g. alice)">
+      <button id="createUserBtn">Create User</button>
+    </div>
+    <div>Current User ID: <strong id="currentUserId">none</strong></div>
+  </div>
+
+  <div class="card">
+    <h3>2) Groups</h3>
+    <div class="row">
+      <input id="groupName" placeholder="group name (e.g. general)">
+      <button id="createGroupBtn">Create Group</button>
+      <button id="listGroupsBtn">List Groups</button>
+    </div>
+    <div class="row">
+      <select id="groupSelect"></select>
+      <button id="joinGroupBtn">Join Selected Group</button>
+    </div>
+    <div>Current Group ID: <strong id="currentGroupId">none</strong></div>
+  </div>
+
+  <div class="card">
+    <h3>3) Messages</h3>
+    <div class="row">
+      <input id="messageInput" placeholder="type a message" style="min-width: 300px;">
+      <button id="postMessageBtn">Post Message</button>
+      <button id="loadMessagesBtn">Load Messages</button>
+    </div>
+    <ul id="messages"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Debug Output</h3>
+    <pre id="debug"></pre>
+  </div>
+
+  <script>
+    const debug = document.getElementById("debug");
+    const currentUserIdEl = document.getElementById("currentUserId");
+    const currentGroupIdEl = document.getElementById("currentGroupId");
+    const groupSelect = document.getElementById("groupSelect");
+    const messagesEl = document.getElementById("messages");
+
+    let currentUserId = "";
+    let currentGroupId = "";
+
+    function setDebug(data) {
+      debug.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        ...options
+      });
+
+      let body = null;
+      try { body = await response.json(); } catch (e) { body = null; }
+
+      if (!response.ok) {
+        throw new Error(JSON.stringify(body || { error: response.statusText }));
+      }
+      return body;
+    }
+
+    document.getElementById("createUserBtn").addEventListener("click", async () => {
+      try {
+        const username = document.getElementById("username").value.trim();
+        const user = await api("/api/users", {
+          method: "POST",
+          body: JSON.stringify({ username })
+        });
+        currentUserId = user.id;
+        currentUserIdEl.textContent = currentUserId;
+        setDebug(user);
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+
+    document.getElementById("createGroupBtn").addEventListener("click", async () => {
+      try {
+        const name = document.getElementById("groupName").value.trim();
+        const group = await api("/api/groups", {
+          method: "POST",
+          body: JSON.stringify({ name, createdBy: currentUserId })
+        });
+        currentGroupId = group.id;
+        currentGroupIdEl.textContent = currentGroupId;
+        await loadGroups();
+        setDebug(group);
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+
+    async function loadGroups() {
+      const groups = await api("/api/groups");
+      groupSelect.innerHTML = "";
+      groups.forEach((g) => {
+        const opt = document.createElement("option");
+        opt.value = g.id;
+        opt.textContent = `${g.name} (${g.id.slice(0, 8)})`;
+        groupSelect.appendChild(opt);
+      });
+
+      if (groups.length > 0) {
+        currentGroupId = groupSelect.value;
+        currentGroupIdEl.textContent = currentGroupId;
+      }
+      return groups;
+    }
+
+    document.getElementById("listGroupsBtn").addEventListener("click", async () => {
+      try {
+        const groups = await loadGroups();
+        setDebug(groups);
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+
+    groupSelect.addEventListener("change", () => {
+      currentGroupId = groupSelect.value;
+      currentGroupIdEl.textContent = currentGroupId || "none";
+    });
+
+    document.getElementById("joinGroupBtn").addEventListener("click", async () => {
+      try {
+        currentGroupId = groupSelect.value;
+        const result = await api(`/api/groups/${currentGroupId}/join`, {
+          method: "POST",
+          body: JSON.stringify({ userId: currentUserId })
+        });
+        setDebug(result);
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+
+    document.getElementById("postMessageBtn").addEventListener("click", async () => {
+      try {
+        const message = document.getElementById("messageInput").value;
+        const posted = await api(`/api/groups/${currentGroupId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ userId: currentUserId, message })
+        });
+        setDebug(posted);
+        document.getElementById("messageInput").value = "";
+        await loadMessages();
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+
+    async function loadMessages() {
+      const messages = await api(`/api/groups/${currentGroupId}/messages?userId=${encodeURIComponent(currentUserId)}`);
+      messagesEl.innerHTML = "";
+      messages.forEach((m) => {
+        const li = document.createElement("li");
+        li.textContent = `[${new Date(m.createdAt).toLocaleTimeString()}] ${m.userId.slice(0, 8)}: ${m.message}`;
+        messagesEl.appendChild(li);
+      });
+      return messages;
+    }
+
+    document.getElementById("loadMessagesBtn").addEventListener("click", async () => {
+      try {
+        const messages = await loadMessages();
+        setDebug(messages);
+      } catch (err) {
+        setDebug(err.message);
+      }
+    });
+  </script>
+</body>
+</html>
+
