@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 async function api(path, options = {}) {
   const response = await fetch(path, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {})
@@ -26,6 +27,7 @@ async function api(path, options = {}) {
 
 export default function App() {
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
 
   const [groupName, setGroupName] = useState("");
@@ -36,7 +38,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
 
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("Sign in with a username to get started.");
+  const [status, setStatus] = useState("Sign in or register to continue.");
   const [error, setError] = useState("");
 
   const selectedGroup = useMemo(
@@ -48,22 +50,103 @@ export default function App() {
     setError("");
   }
 
-  async function handleCreateUser() {
+  function resetWorkspaceState() {
+    setGroups([]);
+    setSelectedGroupId("");
+    setMessages([]);
+    setGroupName("");
+    setMessageText("");
+  }
+
+  useEffect(() => {
+    async function restoreSession() {
+      setBusy(true);
+      try {
+        const user = await api("/api/auth/me");
+        setCurrentUser(user);
+        setStatus(`Welcome back, ${user.username}.`);
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    restoreSession();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    refreshGroups();
+  }, [currentUser]);
+
+  async function handleRegister() {
     clearError();
     if (!username.trim()) {
       setError("Enter a username first.");
       return;
     }
+    if (!password) {
+      setError("Enter a password first.");
+      return;
+    }
 
     setBusy(true);
     try {
-      const user = await api("/api/users", {
+      const user = await api("/api/auth/register", {
         method: "POST",
-        body: JSON.stringify({ username: username.trim() })
+        body: JSON.stringify({ username: username.trim(), password })
+      });
+      setCurrentUser(user);
+      setStatus(`Account created. Signed in as ${user.username}.`);
+      setUsername("");
+      setPassword("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogin() {
+    clearError();
+    if (!username.trim()) {
+      setError("Enter a username first.");
+      return;
+    }
+    if (!password) {
+      setError("Enter a password first.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const user = await api("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ username: username.trim(), password })
       });
       setCurrentUser(user);
       setStatus(`Signed in as ${user.username}.`);
       setUsername("");
+      setPassword("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    clearError();
+    setBusy(true);
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+      setCurrentUser(null);
+      resetWorkspaceState();
+      setStatus("Signed out.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -75,12 +158,16 @@ export default function App() {
     clearError();
     setBusy(true);
     try {
-      const allGroups = await api("/api/groups");
-      setGroups(allGroups);
-      if (allGroups.length && !selectedGroupId) {
-        setSelectedGroupId(allGroups[0].id);
+      const myGroups = await api("/api/groups/mine");
+      setGroups(myGroups);
+      if (myGroups.length && !selectedGroupId) {
+        setSelectedGroupId(myGroups[0].id);
       }
-      setStatus(`Loaded ${allGroups.length} group(s).`);
+      if (!myGroups.length) {
+        setSelectedGroupId("");
+        setMessages([]);
+      }
+      setStatus(`Loaded ${myGroups.length} group(s).`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -103,7 +190,7 @@ export default function App() {
     try {
       const created = await api("/api/groups", {
         method: "POST",
-        body: JSON.stringify({ name: groupName.trim(), createdBy: currentUser.id })
+        body: JSON.stringify({ name: groupName.trim() })
       });
       setGroupName("");
       setStatus(`Group '${created.name}' created.`);
@@ -130,10 +217,10 @@ export default function App() {
     setBusy(true);
     try {
       await api(`/api/groups/${selectedGroupId}/join`, {
-        method: "POST",
-        body: JSON.stringify({ userId: currentUser.id })
+        method: "POST"
       });
       setStatus("You joined the selected group.");
+      await refreshGroups();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -144,15 +231,13 @@ export default function App() {
   async function handleLoadMessages() {
     clearError();
     if (!currentUser?.id || !selectedGroupId) {
-      setError("Select a user and group first.");
+      setError("Select a group first.");
       return;
     }
 
     setBusy(true);
     try {
-      const result = await api(
-        `/api/groups/${selectedGroupId}/messages?userId=${encodeURIComponent(currentUser.id)}`
-      );
+      const result = await api(`/api/groups/${selectedGroupId}/messages`);
       setMessages(result);
       setStatus(`Loaded ${result.length} message(s).`);
     } catch (err) {
@@ -165,7 +250,7 @@ export default function App() {
   async function handlePostMessage() {
     clearError();
     if (!currentUser?.id || !selectedGroupId) {
-      setError("Select a user and group first.");
+      setError("Select a group first.");
       return;
     }
     if (!messageText.trim()) {
@@ -177,7 +262,7 @@ export default function App() {
     try {
       await api(`/api/groups/${selectedGroupId}/messages`, {
         method: "POST",
-        body: JSON.stringify({ userId: currentUser.id, message: messageText.trim() })
+        body: JSON.stringify({ message: messageText.trim() })
       });
       setMessageText("");
       setStatus("Message posted.");
@@ -192,96 +277,121 @@ export default function App() {
   return (
     <div className="page">
       <header className="hero">
-        <h1>LetsRoast</h1>
-        <p>A simple chat app where users can create and join groups, and post messages.</p>
+        <div className="hero-top">
+          <div className="hero-copy">
+            <h1>LetsRoast</h1>
+            <p>A simple chat app where users can create and join groups, and post messages.</p>
+          </div>
+
+          {currentUser ? (
+            <div className="hero-user-controls">
+              <p className="hero-user-meta">
+                Signed in as <strong>{`${currentUser.username} (${currentUser.id.slice(0, 8)})`}</strong>
+              </p>
+              <button className="ghost" onClick={handleLogout} disabled={busy}>Sign Out</button>
+            </div>
+          ) : null}
+        </div>
       </header>
 
-      <section className="grid">
-        <article className="card">
-          <h2>1) User Deck</h2>
-          <div className="row">
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username (e.g. alice)"
-              disabled={busy}
-            />
-            <button onClick={handleCreateUser} disabled={busy}>Sign In / Create</button>
-          </div>
-          <p className="meta">
-            Current user: <strong>{currentUser ? `${currentUser.username} (${currentUser.id.slice(0, 8)})` : "none"}</strong>
-          </p>
-        </article>
+      {!currentUser ? (
+        <section className="grid">
+          <article className="card">
+            <h2>Sign In</h2>
+            <div className="row">
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username (e.g. alice)"
+                disabled={busy}
+              />
+            </div>
+            <div className="row">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                disabled={busy}
+              />
+            </div>
+            <div className="row">
+              <button onClick={handleLogin} disabled={busy}>Sign In</button>
+              <button className="ghost" onClick={handleRegister} disabled={busy}>Register</button>
+            </div>
+          </article>
+        </section>
+      ) : (
+        <section className="grid">
+          <article className="card group-card">
+            <h2>1) Group Arcade</h2>
+            <div className="row">
+              <input
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Group name"
+                disabled={busy}
+              />
+              <button onClick={handleCreateGroup} disabled={busy}>Create Group</button>
+              <button className="ghost" onClick={refreshGroups} disabled={busy}>Refresh</button>
+            </div>
 
-        <article className="card">
-          <h2>2) Group Arcade</h2>
-          <div className="row">
-            <input
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              placeholder="Group name"
-              disabled={busy}
-            />
-            <button onClick={handleCreateGroup} disabled={busy}>Create Group</button>
-            <button className="ghost" onClick={refreshGroups} disabled={busy}>Refresh</button>
-          </div>
+            <div className="row">
+              <select
+                value={selectedGroupId}
+                onChange={(e) => setSelectedGroupId(e.target.value)}
+                disabled={busy || groups.length === 0}
+              >
+                <option value="">Select group</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name} ({group.id.slice(0, 8)})
+                  </option>
+                ))}
+              </select>
+              <button onClick={handleJoinGroup} disabled={busy}>Join Group</button>
+            </div>
 
-          <div className="row">
-            <select
-              value={selectedGroupId}
-              onChange={(e) => setSelectedGroupId(e.target.value)}
-              disabled={busy || groups.length === 0}
-            >
-              <option value="">Select group</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name} ({group.id.slice(0, 8)})
-                </option>
-              ))}
-            </select>
-            <button onClick={handleJoinGroup} disabled={busy}>Join Group</button>
-          </div>
+            <p className="meta">
+              Selected group: <strong>{selectedGroup ? `${selectedGroup.name} (${selectedGroup.id.slice(0, 8)})` : "none"}</strong>
+            </p>
+          </article>
 
-          <p className="meta">
-            Selected group: <strong>{selectedGroup ? `${selectedGroup.name} (${selectedGroup.id.slice(0, 8)})` : "none"}</strong>
-          </p>
-        </article>
+          <article className="card chat-card">
+            <h2>2) Chat Console</h2>
+            <div className="row">
+              <input
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Say something"
+                disabled={busy}
+              />
+              <button onClick={handlePostMessage} disabled={busy}>Post</button>
+              <button className="ghost" onClick={handleLoadMessages} disabled={busy}>Load</button>
+            </div>
 
-        <article className="card chat-card">
-          <h2>3) Chat Console</h2>
-          <div className="row">
-            <input
-              value={messageText}
-              onChange={(e) => setMessageText(e.target.value)}
-              placeholder="Say something"
-              disabled={busy}
-            />
-            <button onClick={handlePostMessage} disabled={busy}>Post</button>
-            <button className="ghost" onClick={handleLoadMessages} disabled={busy}>Load</button>
-          </div>
+            <ul className="messages">
+              {messages.length === 0 ? (
+                <li className="empty">No messages yet.</li>
+              ) : (
+                messages.map((m) => (
+                  <li key={m.id}>
+                    <span className="pill">{m.username}</span>
+                    <div>
+                      <div className="text">{m.message}</div>
+                      <small>{new Date(m.createdAt).toLocaleString()}</small>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </article>
+        </section>
+      )}
 
-          <ul className="messages">
-            {messages.length === 0 ? (
-              <li className="empty">No messages yet.</li>
-            ) : (
-              messages.map((m) => (
-                <li key={m.id}>
-                  <span className="pill">{m.username}</span>
-                  <div>
-                    <div className="text">{m.message}</div>
-                    <small>{new Date(m.createdAt).toLocaleString()}</small>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </article>
-      </section>
-
-      <footer className="status-wrap">
+      <footer className={`status-wrap${currentUser ? "" : " status-wrap-compact"}`}>
         {error ? <div className="status error">{error}</div> : <div className="status">{status}</div>}
       </footer>
     </div>
   );
 }
-
