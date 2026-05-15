@@ -35,8 +35,17 @@ public class PostgresGroupService implements GroupService {
 	}
 
 	@Override
+	public List<Group> listGroupsForUser(String userId) {
+		List<String> groupIds = membershipRepository.findGroupIdsByUserId(userId);
+		if (groupIds.isEmpty()) {
+			return List.of();
+		}
+		return groupRepository.findAllById(groupIds);
+	}
+
+	@Override
 	public void joinGroup(String groupId, String userId) {
-		if (groupRepository.existsById(groupId)) {
+		if (groupRepository.existsById(groupId) && !membershipRepository.existsByUserIdAndGroupId(userId, groupId)) {
 			membershipRepository.save(new UserGroupMembership(userId, groupId));
 		}
 	}

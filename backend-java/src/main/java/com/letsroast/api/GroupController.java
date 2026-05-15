@@ -1,6 +1,8 @@
 package com.letsroast.api;
 
 import com.letsroast.model.Group;
+import com.letsroast.model.User;
+import com.letsroast.service.AuthSessionService;
 import com.letsroast.service.GroupService;
 import com.letsroast.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -17,12 +19,16 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/groups")
 public class GroupController {
+    private static final String SESSION_COOKIE = "letsroast_session";
+
     private final GroupService groupService;
     private final UserService userService;
+    private final AuthSessionService authSessionService;
 
-    public GroupController(GroupService groupService, UserService userService) {
+    public GroupController(GroupService groupService, UserService userService, AuthSessionService authSessionService) {
         this.groupService = groupService;
         this.userService = userService;
+        this.authSessionService = authSessionService;
     }
 
     /**
@@ -32,18 +38,19 @@ public class GroupController {
      * @return created group, 400 for invalid input, or 404 when creator user is not found
      */
     @PostMapping
-    public ResponseEntity<?> createGroup(@RequestBody CreateGroupRequest request) {
+    public ResponseEntity<?> createGroup(
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionId,
+            @RequestBody CreateGroupRequest request
+    ) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
         if (request == null || request.name() == null || request.name().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "group name is required"));
         }
-        if (request.createdBy() == null || request.createdBy().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "createdBy userId is required"));
-        }
-        if (userService.getUserById(request.createdBy()) == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "creator user not found"));
-        }
 
-        Group group = groupService.createGroup(request.name().trim(), request.createdBy());
+        Group group = groupService.createGroup(request.name().trim(), currentUser.getId());
         return ResponseEntity.ok(group);
     }
 
@@ -53,8 +60,21 @@ public class GroupController {
      * @return list of group objects
      */
     @GetMapping
-    public List<Group> listGroups() {
-        return groupService.listAllGroups();
+    public ResponseEntity<?> listGroups(@CookieValue(name = SESSION_COOKIE, required = false) String sessionId) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
+        return ResponseEntity.ok(groupService.listAllGroups());
+    }
+
+    @GetMapping("/mine")
+    public ResponseEntity<?> listMyGroups(@CookieValue(name = SESSION_COOKIE, required = false) String sessionId) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
+        return ResponseEntity.ok(groupService.listGroupsForUser(currentUser.getId()));
     }
 
     /**
@@ -65,40 +85,40 @@ public class GroupController {
      * @return join confirmation payload, 400 for invalid input, or 404 when group/user is missing
      */
     @PostMapping("/{groupId}/join")
-    public ResponseEntity<?> joinGroup(@PathVariable String groupId, @RequestBody JoinGroupRequest request) {
+    public ResponseEntity<?> joinGroup(
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionId,
+            @PathVariable String groupId
+    ) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
         if (groupService.getGroupById(groupId) == null) {
             return ResponseEntity.status(404).body(Map.of("error", "group not found"));
         }
-        if (request == null || request.userId() == null || request.userId().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "userId is required"));
-        }
-        if (userService.getUserById(request.userId()) == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "user not found"));
-        }
 
-        groupService.joinGroup(groupId, request.userId());
+        groupService.joinGroup(groupId, currentUser.getId());
         return ResponseEntity.ok(Map.of(
                 "message", "joined group",
                 "groupId", groupId,
-                "userId", request.userId()
+                "userId", currentUser.getId()
         ));
+    }
+
+    private User getAuthenticatedUser(String sessionId) {
+        String userId = authSessionService.getUserIdFromSession(sessionId);
+        if (userId == null) {
+            return null;
+        }
+        return userService.getUserById(userId);
     }
 
     /**
      * Request body for creating a group.
      *
      * @param name group name
-     * @param createdBy creator user id
      */
-    public record CreateGroupRequest(String name, String createdBy) {
-    }
-
-    /**
-     * Request body for joining a group.
-     *
-     * @param userId user id to add to the group
-     */
-    public record JoinGroupRequest(String userId) {
+    public record CreateGroupRequest(String name) {
     }
 }
 

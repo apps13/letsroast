@@ -1,6 +1,8 @@
 package com.letsroast.api;
 
 import com.letsroast.model.ChatMessage;
+import com.letsroast.model.User;
+import com.letsroast.service.AuthSessionService;
 import com.letsroast.service.ChatMessageService;
 import com.letsroast.service.GroupService;
 import com.letsroast.service.UserService;
@@ -18,18 +20,23 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/groups/{groupId}/messages")
 public class ChatMessageController {
+    private static final String SESSION_COOKIE = "letsroast_session";
+
     private final ChatMessageService chatMessageService;
     private final GroupService groupService;
     private final UserService userService;
+    private final AuthSessionService authSessionService;
 
     public ChatMessageController(
             ChatMessageService chatMessageService,
             GroupService groupService,
-            UserService userService
+            UserService userService,
+            AuthSessionService authSessionService
     ) {
         this.chatMessageService = chatMessageService;
         this.groupService = groupService;
         this.userService = userService;
+        this.authSessionService = authSessionService;
     }
 
     /**
@@ -40,24 +47,26 @@ public class ChatMessageController {
      * @return created message, or 400/403/404 for validation and access failures
      */
     @PostMapping
-    public ResponseEntity<?> postMessage(@PathVariable String groupId, @RequestBody PostMessageRequest request) {
+    public ResponseEntity<?> postMessage(
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionId,
+            @PathVariable String groupId,
+            @RequestBody PostMessageRequest request
+    ) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
         if (groupService.getGroupById(groupId) == null) {
             return ResponseEntity.status(404).body(Map.of("error", "group not found"));
-        }
-        if (request == null || request.userId() == null || request.userId().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "userId is required"));
         }
         if (request.message() == null || request.message().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "message is required"));
         }
-        if (userService.getUserById(request.userId()) == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "user not found"));
-        }
-        if (!groupService.isMember(groupId, request.userId())) {
+        if (!groupService.isMember(groupId, currentUser.getId())) {
             return ResponseEntity.status(403).body(Map.of("error", "user is not a group member"));
         }
 
-        ChatMessage chatMessage = chatMessageService.postMessage(groupId, request.userId(), request.message().trim());
+        ChatMessage chatMessage = chatMessageService.postMessage(groupId, currentUser.getId(), request.message().trim());
         return ResponseEntity.ok(chatMessage);
     }
 
@@ -69,17 +78,18 @@ public class ChatMessageController {
      * @return list of chat messages with usernames, or 400/403/404 when checks fail
      */
     @GetMapping
-    public ResponseEntity<?> listMessages(@PathVariable String groupId, @RequestParam String userId) {
+    public ResponseEntity<?> listMessages(
+            @CookieValue(name = SESSION_COOKIE, required = false) String sessionId,
+            @PathVariable String groupId
+    ) {
+        User currentUser = getAuthenticatedUser(sessionId);
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "not authenticated"));
+        }
         if (groupService.getGroupById(groupId) == null) {
             return ResponseEntity.status(404).body(Map.of("error", "group not found"));
         }
-        if (userId == null || userId.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "userId query parameter is required"));
-        }
-        if (userService.getUserById(userId) == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "user not found"));
-        }
-        if (!groupService.isMember(groupId, userId)) {
+        if (!groupService.isMember(groupId, currentUser.getId())) {
             return ResponseEntity.status(403).body(Map.of("error", "user is not a group member"));
         }
 
@@ -87,13 +97,20 @@ public class ChatMessageController {
         return ResponseEntity.ok(messages);
     }
 
+    private User getAuthenticatedUser(String sessionId) {
+        String userId = authSessionService.getUserIdFromSession(sessionId);
+        if (userId == null) {
+            return null;
+        }
+        return userService.getUserById(userId);
+    }
+
     /**
      * Request body for posting a new message.
      *
-     * @param userId sender user id
      * @param message message text content
      */
-    public record PostMessageRequest(String userId, String message) {
+    public record PostMessageRequest(String message) {
     }
 }
 

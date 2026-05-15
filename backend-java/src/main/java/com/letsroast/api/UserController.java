@@ -23,22 +23,6 @@ public class UserController {
     }
 
     /**
-     * Creates a new user.
-     *
-     * @param request request body containing a username
-     * @return created user or 400 when username is missing/blank
-     */
-    @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody CreateUserRequest request) {
-        if (request == null || request.username() == null || request.username().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "username is required"));
-        }
-
-        User user = userService.registerUser(request.username().trim());
-        return ResponseEntity.ok(user);
-    }
-
-    /**
      * Fetches a user by id.
      *
      * @param userId user identifier from the URL path
@@ -53,12 +37,5 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-    /**
-     * Request body for creating a user.
-     *
-     * @param username display name for the new user
-     */
-    public record CreateUserRequest(String username) {
-    }
 }
 

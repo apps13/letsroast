@@ -28,6 +28,21 @@ public class InMemoryGroupService implements GroupService {
     }
 
     @Override
+    public List<Group> listGroupsForUser(String userId) {
+        List<Group> userGroups = new ArrayList<>();
+        for (String membership : memberships) {
+            String[] parts = membership.split(":", 2);
+            if (parts.length == 2 && parts[0].equals(userId)) {
+                Group group = groups.get(parts[1]);
+                if (group != null) {
+                    userGroups.add(group);
+                }
+            }
+        }
+        return userGroups;
+    }
+
+    @Override
     public void joinGroup(String groupId, String userId) {
         if (groups.containsKey(groupId)) {
             memberships.add(userId + ":" + groupId);
