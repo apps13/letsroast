@@ -16,6 +16,10 @@ public class PostgresUserService implements UserService {
 
     @Override
     public User registerUser(String username) {
+        User existingUser = userRepository.findByUsernameIgnoreCase(username).orElse(null);
+        if (existingUser != null) {
+            return existingUser;
+        }
         User user = new User(username);
         return userRepository.save(user);
     }
@@ -23,6 +27,11 @@ public class PostgresUserService implements UserService {
     @Override
     public User getUserById(String userId) {
         return userRepository.findById(userId).orElse(null);
+    }
+
+    @Override
+    public User getUserByUsername(String username) {
+        return userRepository.findByUsernameIgnoreCase(username).orElse(null);
     }
 }
 

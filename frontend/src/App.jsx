@@ -36,7 +36,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
 
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("Create a user to get started.");
+  const [status, setStatus] = useState("Sign in with a username to get started.");
   const [error, setError] = useState("");
 
   const selectedGroup = useMemo(
@@ -91,7 +91,7 @@ export default function App() {
   async function handleCreateGroup() {
     clearError();
     if (!currentUser?.id) {
-      setError("Create a user before creating a group.");
+      setError("Sign in before creating a group.");
       return;
     }
     if (!groupName.trim()) {
@@ -119,7 +119,7 @@ export default function App() {
   async function handleJoinGroup() {
     clearError();
     if (!currentUser?.id) {
-      setError("Create a user first.");
+      setError("Sign in first.");
       return;
     }
     if (!selectedGroupId) {
@@ -206,7 +206,7 @@ export default function App() {
               placeholder="Username (e.g. alice)"
               disabled={busy}
             />
-            <button onClick={handleCreateUser} disabled={busy}>Create User</button>
+            <button onClick={handleCreateUser} disabled={busy}>Sign In / Create</button>
           </div>
           <p className="meta">
             Current user: <strong>{currentUser ? `${currentUser.username} (${currentUser.id.slice(0, 8)})` : "none"}</strong>

@@ -14,6 +14,10 @@ public class InMemoryUserService implements UserService {
 
     @Override
     public User registerUser(String username) {
+        User existingUser = getUserByUsername(username);
+        if (existingUser != null) {
+            return existingUser;
+        }
         User user = new User(username);
         users.put(user.getId(), user);
         return user;
@@ -22,6 +26,14 @@ public class InMemoryUserService implements UserService {
     @Override
     public User getUserById(String userId) {
         return users.get(userId);
+    }
+
+    @Override
+    public User getUserByUsername(String username) {
+        return users.values().stream()
+                .filter(user -> user.getUsername().equalsIgnoreCase(username))
+                .findFirst()
+                .orElse(null);
     }
 }
 
