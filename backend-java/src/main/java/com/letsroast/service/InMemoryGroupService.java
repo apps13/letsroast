@@ -2,11 +2,13 @@ package com.letsroast.service;
 
 import com.letsroast.model.Group;
 import com.letsroast.model.UserGroupMembership;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 @Service
+@Profile("default")
 public class InMemoryGroupService implements GroupService {
     private final Map<String, Group> groups = new HashMap<>();
     private final Set<String> memberships = new HashSet<>(); // stores "userId:groupId"

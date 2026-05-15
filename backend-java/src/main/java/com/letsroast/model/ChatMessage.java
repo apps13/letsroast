@@ -2,13 +2,28 @@ package com.letsroast.model;
 
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "chat_messages")
 public class ChatMessage {
+    @Id
     private String id;
+
+    @Column(nullable = false)
     private String groupId;
+
+    @Column(nullable = false)
     private String userId;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
+
+    @Column(nullable = false)
     private Instant createdAt;
+
+    public ChatMessage() {
+    }
 
     public ChatMessage(String groupId, String userId, String message) {
         this.id = UUID.randomUUID().toString();

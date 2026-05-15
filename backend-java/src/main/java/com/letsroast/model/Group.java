@@ -2,12 +2,25 @@ package com.letsroast.model;
 
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.*;
 
+@Entity
+@Table(name = "groups")
 public class Group {
+    @Id
     private String id;
+
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
     private String createdBy;
+
+    @Column(nullable = false)
     private Instant createdAt;
+
+    public Group() {
+    }
 
     public Group(String name, String createdBy) {
         this.id = UUID.randomUUID().toString();

@@ -266,7 +266,7 @@ export default function App() {
             ) : (
               messages.map((m) => (
                 <li key={m.id}>
-                  <span className="pill">{m.userId.slice(0, 8)}</span>
+                  <span className="pill">{m.username}</span>
                   <div>
                     <div className="text">{m.message}</div>
                     <small>{new Date(m.createdAt).toLocaleString()}</small>

@@ -66,7 +66,7 @@ public class ChatMessageController {
      *
      * @param groupId target group id from the URL path
      * @param userId user id query parameter used for membership check
-     * @return list of chat messages, or 400/403/404 when checks fail
+     * @return list of chat messages with usernames, or 400/403/404 when checks fail
      */
     @GetMapping
     public ResponseEntity<?> listMessages(@PathVariable String groupId, @RequestParam String userId) {
@@ -83,7 +83,7 @@ public class ChatMessageController {
             return ResponseEntity.status(403).body(Map.of("error", "user is not a group member"));
         }
 
-        List<ChatMessage> messages = chatMessageService.getMessagesByGroupId(groupId);
+        List<ChatMessageDTO> messages = chatMessageService.getMessagesByGroupId(groupId);
         return ResponseEntity.ok(messages);
     }
 
