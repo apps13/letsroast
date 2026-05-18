@@ -24,15 +24,15 @@ In simple terms:
 
 **Two modes available:**
 
-- **Default (H2 In-Memory)** - Zero setup, perfect for development
+- **Default (PostgreSQL)** - The main mode used by this project
+  - Data persists across restarts
+  - Works with the included Docker setup
+  - Better match for how the app is intended to run
+
+- **H2 In-Memory** - Used for initial testing and quick experiments
   - Data stored in memory
   - Auto-cleared on restart
   - No external dependencies
-
-- **PostgreSQL** - Production-ready persistence
-  - Data persists across restarts
-  - Docker container included
-  - Scalable to multiple instances
 
 ## Main folders
 
@@ -46,9 +46,15 @@ In simple terms:
 
 From this folder (`backend-java`):
 
-### Default Mode (H2 In-Memory)
+### Default Mode (PostgreSQL)
 ```bash
 mvn clean spring-boot:run
+```
+
+If you want to use the older in-memory mode for quick local testing, run:
+
+```bash
+mvn clean spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=default"
 ```
 
 ### PostgreSQL Mode
@@ -66,28 +72,6 @@ mvn clean spring-boot:run -Dspring-boot.run.arguments="--spring.profiles.active=
 ```bash
 curl http://localhost:8080/api/health
 curl http://localhost:8080/actuator/health
-```
-
-## API Examples
-
-```bash
-# Create a user
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"username": "alice"}'
-
-# Create a group
-curl -X POST http://localhost:8080/api/groups \
-  -H "Content-Type: application/json" \
-  -d '{"name": "roast_squad", "createdBy": "alice_id"}'
-
-# Post a message
-curl -X POST http://localhost:8080/api/messages \
-  -H "Content-Type: application/json" \
-  -d '{"groupId": "group_id", "userId": "alice_id", "message": "This code is fire!"}'
-
-# Get messages
-curl http://localhost:8080/api/messages?groupId=group_id
 ```
 
 ## Database
