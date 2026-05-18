@@ -31,10 +31,11 @@ Built as a personal project to learn **Spring Boot** and put together a complete
 
 ## Running Locally
 
-### Quickest start (no database needed)
+### Quickest start
 
 ```bash
-# Terminal 1 — backend (H2 in-memory)
+# Terminal 1 — backend (PostgreSQL default)
+docker-compose up -d
 cd backend-java
 mvn clean spring-boot:run
 
