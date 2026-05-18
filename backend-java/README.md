@@ -2,6 +2,8 @@
 
 This folder contains the Java backend API for LetsRoast.
 
+> This project is also a personal exercise to learn Spring Boot fundamentals while building a real chat backend.
+
 In simple terms:
 - Backend = the server logic and API endpoints
 - Frontend = the UI that calls this backend (in `../frontend`)
