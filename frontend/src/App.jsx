@@ -167,7 +167,7 @@ export default function App() {
         setSelectedGroupId("");
         setMessages([]);
       }
-      setStatus(`Loaded ${myGroups.length} group(s).`);
+      setStatus(`Loaded ${myGroups.length} group${myGroups.length === 1 ? "" : "s"}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -239,7 +239,7 @@ export default function App() {
     try {
       const result = await api(`/api/groups/${selectedGroupId}/messages`);
       setMessages(result);
-      setStatus(`Loaded ${result.length} message(s).`);
+      setStatus(`Loaded ${result.length} message${result.length === 1 ? "" : "s"}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -280,7 +280,7 @@ export default function App() {
         <div className="hero-top">
           <div className="hero-copy">
             <h1>LetsRoast</h1>
-            <p>A simple chat app where users can create and join groups, and post messages.</p>
+            <p>Spin up a group, drop in, and start the conversation.</p>
           </div>
 
           {currentUser ? (
@@ -295,8 +295,8 @@ export default function App() {
       </header>
 
       {!currentUser ? (
-        <section className="grid">
-          <article className="card">
+        <section className="auth-screen">
+          <article className="card auth-card">
             <h2>Sign In</h2>
             <div className="row">
               <input
@@ -320,6 +320,30 @@ export default function App() {
               <button className="ghost" onClick={handleRegister} disabled={busy}>Register</button>
             </div>
           </article>
+
+          <ul className="feature-list">
+            <li className="feature-item">
+              <span className="feature-icon">⚡</span>
+              <div>
+                <strong>Real-time groups</strong>
+                <p>Messages land the moment they're posted.</p>
+              </div>
+            </li>
+            <li className="feature-item">
+              <span className="feature-icon">🔒</span>
+              <div>
+                <strong>Secure sessions</strong>
+                <p>Cookie-based auth with hashed passwords.</p>
+              </div>
+            </li>
+            <li className="feature-item">
+              <span className="feature-icon">🚀</span>
+              <div>
+                <strong>No setup needed</strong>
+                <p>Register, create a group, and start chatting.</p>
+              </div>
+            </li>
+          </ul>
         </section>
       ) : (
         <section className="grid">
@@ -345,7 +369,7 @@ export default function App() {
                 <option value="">Select group</option>
                 {groups.map((group) => (
                   <option key={group.id} value={group.id}>
-                    {group.name} ({group.id.slice(0, 8)})
+                    {group.name}
                   </option>
                 ))}
               </select>
@@ -353,7 +377,7 @@ export default function App() {
             </div>
 
             <p className="meta">
-              Selected group: <strong>{selectedGroup ? `${selectedGroup.name} (${selectedGroup.id.slice(0, 8)})` : "none"}</strong>
+              Selected group: <strong>{selectedGroup ? selectedGroup.name : "none"}</strong>
             </p>
           </article>
 
