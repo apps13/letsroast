@@ -286,7 +286,7 @@ export default function App() {
           {currentUser ? (
             <div className="hero-user-controls">
               <p className="hero-user-meta">
-                Signed in as <strong>{`${currentUser.username} (${currentUser.id.slice(0, 8)})`}</strong>
+                Signed in as <strong>{currentUser.username}</strong>
               </p>
               <button className="ghost" onClick={handleLogout} disabled={busy}>Sign Out</button>
             </div>
